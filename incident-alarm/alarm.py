@@ -31,22 +31,38 @@ def main():
 # Vuln detection functions              #
 #########################################
 #
-# packet_callback()
+# packet_callback
 #       
 # Callback function for sniff function. Checks for insecure protocols
 # (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
 #
-# @param          packet object
-# @return         n/a
+# @param        packet object
+# @return       n/a
 #
 def packet_callback(packet):
         try:
-                if packet[TCP].dport == 80:
-                        print("HTTP (web) traffic detected!")
-                if packet[TCP].dport == 20:
-                        print("FTP (web) traffic detected!")
+                if (packet[TCP].dport == 80 or packet[TCP].dport == 20):
+                        check_for_payload(packet, packet[TCP].dport)
         except:
-                pass
+                print("Error: Unable to analyze packet.")
+
+#
+# check_for_payload
+#       
+# Callback function for sniff function. Checks for insecure protocols
+# (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
+#
+# @param        packet object
+# @param        int port
+# @return       n/a
+#
+def check_for_payload(packet, port):
+        if port == 80:
+                print("HTTP")
+        elif port == 20:
+                print("FTP")
+        else
+                print("Error: Wrong port passed for payload check")
 
 #########################################
 # Incident logging functions            #
@@ -56,12 +72,12 @@ def packet_callback(packet):
 # Command-line Interface                #
 #########################################
 #
-# set_parser_args()
+# set_parser_args
 #       
 # Sets up parser command-line arguments
 #
-# @param          n/a
-# @return         argument parser
+# @param        n/a
+# @return       argument parser
 #
 def set_parser_args():
         parser = argparse.ArgumentParser(
@@ -82,12 +98,12 @@ def set_parser_args():
         return parser.parse_args()
 
 #
-# parse_args()
+# parse_args
 #       
 # Parses command-line arguments
 #
-# @param          n/a
-# @return         n/a
+# @param        n/a
+# @return       n/a
 #
 def parse_args():
         args = set_parser_args()
