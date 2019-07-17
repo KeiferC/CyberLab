@@ -90,7 +90,7 @@ def grab_pass(packet, payload, port):
                 incident_type = "plaintext"
 
                 if port == 80:
-                        print("http")
+                        print("http") # TODO : grab_pass_http
                 elif port == 21:
                         grab_pass_ftp(packet, payload)
         except:
