@@ -43,6 +43,8 @@ def packet_callback(packet):
         try:
                 if packet[TCP].dport == 80:
                         print("HTTP (web) traffic detected!")
+                if packet[TCP].dport == 20":
+                        print("FTP (web) traffic detected!")
         except:
                 pass
 
@@ -99,7 +101,7 @@ def parse_args():
                         print("Sorry, something went wrong reading PCAP \
                               file %(filename)s!" %
                               {"filename" : args.pcapfile})
-                              
+
         else: # Sniffing on interface
                 print("Sniffing on %(interface)s... " % 
                       {"interface" : args.interface})
