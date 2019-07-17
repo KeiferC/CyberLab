@@ -20,14 +20,21 @@ import pcapy
 import argparse
 import sys
 
+#########################################
+# Main                                  #
+#########################################
 def main():
         parse_args()
         sys.exit()
 
+#########################################
+# Vuln detection functions              #
+#########################################
 #
 # packet_callback()
 #       
-# Callback function for sniff function
+# Callback function for sniff function. Checks for insecure protocols
+# (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
 #
 # @param          packet object
 # @return         n/a
@@ -39,15 +46,22 @@ def packet_callback(packet):
         except:
                 pass
 
+#########################################
+# Incident logging functions            #
+#########################################
+
+#########################################
+# Command-line Interface                #
+#########################################
 #
-# parse_args()
+# set_parser_args()
 #       
-# Parses command-line arguments
+# Sets up parser command-line arguments
 #
 # @param          n/a
-# @return         n/a
+# @return         argument parser
 #
-def parse_args():
+def set_parser_args():
         parser = argparse.ArgumentParser(
                 description='A network sniffer that identifies basic \
                              vulnerabilities')
@@ -63,34 +77,43 @@ def parse_args():
                 dest='pcapfile', 
                 help='A PCAP file to read')
 
-        args = parser.parse_args()
+        return parser.parse_args()
 
-        if args.pcapfile:
+#
+# parse_args()
+#       
+# Parses command-line arguments
+#
+# @param          n/a
+# @return         n/a
+#
+def parse_args():
+        args = set_parser_args()
+
+        if args.pcapfile: # Reading from pcap file
                 try:
                         print("Reading PCAP file %(filename)s..." % 
                               {"filename" : args.pcapfile})
-
                         sniff(offline=args.pcapfile, prn=packet_callback)  
-
                 except:
                         print("Sorry, something went wrong reading PCAP \
                               file %(filename)s!" %
                               {"filename" : args.pcapfile})
-
-        else:
+                              
+        else: # Sniffing on interface
                 print("Sniffing on %(interface)s... " % 
                       {"interface" : args.interface})
-                
                 try:
                         sniff(iface=args.interface, prn=packet_callback)
-
                 except pcapy.PcapError:
                         print("Sorry, error opening network interface \
                               %(interface)s. It does not exist." % 
                               {"interface" : args.interface})
-
                 except:
                         print("Sorry, can\'t read network traffic. \
                               Are you root?")
 
+#########################################
+# Function Calls                        #
+#########################################
 main()
