@@ -285,6 +285,7 @@ def log_scan(packet, incident):
         incident["proto"] = packet[IP].proto
         incident["scan_type"] = scan_type
         print_incident(packet[IP].src)
+
 #
 # new_incident
 #
@@ -324,17 +325,11 @@ def print_incident(incident):
 
         if details["incident_type"] == "plaintext":
                 payload = "(username:{0}, password:{1})".format(
-                        details["user"], 
-                        details["pass"])
-                output += "Usernames and passwords sent in-the-clear "
-                output += "from {0} ".format(incident)
-                details["user"] = None
-                details["pass"] = None
+                           details["user"], details["pass"])
+                output += format_plaintext_output(incident, details)
 
         elif details["incident_type"] == "scan":
-                output += "{0} is detected from {1} ".format(
-                        details["scan_type"], 
-                        incident)
+                output += format_scan_output(incident, details)
         
         output += "({0})".format(details["proto"])
 
@@ -344,6 +339,35 @@ def print_incident(incident):
         output += "!"
 
         print(output)
+
+#
+# format_plaintext_output
+#
+# Formats plaintext-specific output
+#
+# @param        string incident
+# @param        dict details
+# @returns      string
+#
+def format_plaintext_output(incident, details):
+        output = "Usernames and passwords sent in-the-clear "
+        output += "from {0} ".format(incident)
+        details["user"] = None
+        details["pass"] = None
+        return output
+
+#
+# format_scan_output
+#
+# Formats scan-specific output
+#
+# @param        string incident
+# @param        dict details
+# @returns      string
+#
+def format_scan_output(incident, details):
+        return "{0} is detected from {1} ".format(details["scan_type"], 
+                                                  incident)
 
 #########################################
 # Command-line Interface                #
