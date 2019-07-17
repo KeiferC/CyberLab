@@ -61,7 +61,7 @@ def check_for_payload(packet, port):
                 print("HTTP")
         elif port == 20:
                 print("FTP")
-        else
+        else:
                 print("Error: Wrong port passed for payload check")
 
 #########################################
