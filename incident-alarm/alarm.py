@@ -43,7 +43,7 @@ def packet_callback(packet):
         try:
                 if packet[TCP].dport == 80:
                         print("HTTP (web) traffic detected!")
-                if packet[TCP].dport == 20":
+                if packet[TCP].dport == 20:
                         print("FTP (web) traffic detected!")
         except:
                 pass
