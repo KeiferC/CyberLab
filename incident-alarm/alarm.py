@@ -23,6 +23,8 @@ import sys
 #########################################
 # Main                                  #
 #########################################
+incident_counter = 0
+
 def main():
         parse_args()
         sys.exit()
@@ -41,10 +43,10 @@ def main():
 #
 def packet_callback(packet):
         try:
-                if (packet[TCP].dport == 80 or packet[TCP].dport == 20):
-                        check_for_payload(packet, packet[TCP].dport)
+                if (packet[TCP].dport == 80 or packet[TCP].dport == 21):
+                        check_for_payload(packet[TCP], packet[TCP].dport)
         except:
-                print("Error: Unable to analyze packet.")
+                print("Error: Unable to read packet.")
 
 #
 # check_for_payload
@@ -56,13 +58,31 @@ def packet_callback(packet):
 # @param        int port
 # @return       n/a
 #
-def check_for_payload(packet, port):
-        if port == 80:
-                print("HTTP")
-        elif port == 20:
-                print("FTP")
-        else:
-                print("Error: Wrong port passed for payload check")
+def check_for_payload(tcp_packet, port):
+        try:
+                password = None;
+
+                if tcp_packet.payload:
+                        payload = str(tcp_packet.payload.load)
+                        password = grab_pass(payload, port)
+
+                        if password != None:
+                                print(password)
+        except:
+                print("Error: Unable to read payload")
+
+#
+# grab_pass
+#       
+# Given payload and port, looks for username:password 
+# pairs and returns them if exists
+#
+# @param        string payload
+# @param        int port
+# @return       string 
+#
+def grab_pass(payload, port):
+        return None
 
 #########################################
 # Incident logging functions            #
