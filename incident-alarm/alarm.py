@@ -21,16 +21,18 @@
 from scapy.all import *
 import pcapy
 import argparse
+import base64
 import sys
+import re
 
 #########################################
 # Main                                  #
 #########################################
 incidents_log = {}
+incident_counter = 0
 
 def main():
         parse_args()
-        print_incidents()
         sys.exit()
 
 #########################################
@@ -47,11 +49,13 @@ def main():
 #
 def packet_callback(packet):
         try:
-                if (TCP in packet) and \
-                   (packet[TCP].dport == 80 or packet[TCP].dport == 21):
-                        check_for_payload(packet, packet[TCP].dport)
+                if (TCP in packet):
+                        if packet[TCP].dport == 80 or \
+                           packet[TCP].dport == 21:
+                                check_for_payload(packet, packet[TCP].dport)
+                        
+                        # TODO : Check for TCP flags (packet[TCP].flags)
 
-                # TODO : Handling Stealth Scans
         except Exception as e:
                 print("Error: Unable to read packet.", e)
 
@@ -70,6 +74,7 @@ def check_for_payload(packet, port):
                 if packet[TCP].payload:
                         payload = str(packet[TCP].payload.load)
                         grab_pass(packet, payload, port)
+
         except Exception as e:
                 print("Error: Unable to read payload.", e)
 
@@ -91,11 +96,46 @@ def grab_pass(packet, payload, port):
                 incident_type = "plaintext"
 
                 if port == 80:
-                        print("http") # TODO : grab_pass_http
+                        grab_pass_http(packet, payload)
                 elif port == 21:
                         grab_pass_ftp(packet, payload)
+
         except Exception as e:
                 print("Error: Unable to read port.", e)
+
+#
+# grab_pass_http
+#       
+# Parses HTTP payload for usernames and passwords 
+# and sends them to be logged
+#
+# @param        PacketList packet
+# @param        string payload
+# @param        int port
+# @return       n/a
+#
+def grab_pass_http(packet, payload):
+        try:
+                user = None
+                passwd = None
+                incident_type = "plaintext"
+                userpass = None
+
+                if "Authorization: Basic" in payload:
+                        userpass_regex = re.compile(r'''(
+                                (Authorization:\sBasic\s)
+                                ((.*?)\\r\\n))''', re.VERBOSE)
+
+                        userpass = userpass_regex.search(payload)
+
+                        if userpass:
+                                userpass = parse_userpass(userpass)
+                                user  = get_http_user(userpass)
+                                passwd = get_http_pass(userpass)
+                                log(packet, incident_type, user, passwd, None)
+                
+        except Exception as e:
+                print("Error: Unable to parse HTTP payload.", e)
 
 #
 # grab_pass_ftp
@@ -123,8 +163,63 @@ def grab_pass_ftp(packet, payload):
                         passwd = payload.lstrip("b'PASS ")
                         passwd= passwd.rstrip("\\r\\n'")
                         log(packet, incident_type, user, passwd, None)
+
         except Exception as e:
-                print("Error: Unable to parse FTP payload", e)
+                print("Error: Unable to parse FTP payload.", e)
+
+#
+# parse_userpass
+#       
+# Parses retrieved regex match and returns
+# a plaintext string containing the username:
+# password pair
+#
+# @param        SRE_Match userpass
+# @return       string
+#
+def parse_userpass(userpass):
+        userpass = userpass.group(1)
+        userpass = userpass.lstrip("Authorization: Basic ")
+        userpass = userpass.rstrip("\\r\\n")
+        userpass = base64.b64decode(userpass)
+
+        return str(userpass)
+
+#
+# get_http_user
+#       
+# Returns string username from userpass
+#
+# @param        string userpass
+# @return       string
+#
+def get_http_user(userpass):
+        user_regex = re.compile(r"b'(.*?)\:", re.VERBOSE)
+        user = user_regex.search(userpass)
+
+        if user:
+                user = str(user.group(1))
+                return user
+        else:
+                raise Exception("Unable to retrieve username from HTTP")
+
+#
+# get_http_user
+#       
+# Returns string username from userpass
+#
+# @param        string userpass
+# @return       string
+#
+def get_http_pass(userpass):
+        pass_regex = re.compile(r"\:(.*?)'")
+        passwd = pass_regex.search(userpass)
+
+        if passwd:
+                passwd = str(passwd.group(1))
+                return passwd
+        else:
+                raise Exception("Unable to retrieve password from HTTP")
 
 #########################################
 # Incident logging functions            #
@@ -137,7 +232,7 @@ def grab_pass_ftp(packet, payload):
 # @param        PacketList packet
 # @param        string incident_type
 # @param        string user
-# @param        passwd
+# @param        string passwd
 # @param        string scan_type
 # @return       n/a
 #
@@ -150,17 +245,46 @@ def log(packet, incident_type, user, passwd, scan_type):
         incident = incidents_log[ip]
                 
         if incident_type == "plaintext":
-                if incident["proto"] == None:
-                        incident["proto"] = packet[TCP].dport
-                if user != None:
-                        incident["user"] = user
-                if passwd != None:
-                        incident["pass"] = passwd
-
+                log_plaintext(packet, incident, user, passwd)
         elif incident_type == "scan":
-                incident["proto"] = packet[IP].proto
-                incident["scan_type"] = scan_type
+                log_scan(packet, incident)
 
+#
+# log_plaintext
+#       
+# Logs plaintext-specific incident
+#
+# @param        PacketList packet
+# @param        dict incident
+# @param        string user
+# @param        string passwd
+# @return       n/a
+#
+def log_plaintext(packet, incident, user, passwd):
+        if incident["proto"] == None:
+                incident["proto"] = packet[TCP].dport
+        if user != None:
+                incident["user"] = user
+        if passwd != None:
+                incident["pass"] = passwd
+        if incident["user"] != None and incident["pass"] != None:
+                print_incident(packet[IP].src)
+
+#
+# log_scan
+#       
+# Logs plaintext-specific incident
+#
+# @param        PacketList packet
+# @param        dict incident
+# @param        string user
+# @param        string passwd
+# @return       n/a
+#
+def log_scan(packet, incident):
+        incident["proto"] = packet[IP].proto
+        incident["scan_type"] = scan_type
+        print_incident(packet[IP].src)
 #
 # new_incident
 #
@@ -188,37 +312,38 @@ def new_incident(incident_type, user, passwd):
 #
 # prints all logged incidents
 #
-# @param        n/a
+# @param        string incident
 # @returns      n/a
 #
-def print_incidents():
-        incident_counter = 0;
+def print_incident(incident):
+        global incident_counter
+        incident_counter += 1
+        details = incidents_log[incident]
+        payload = None
+        output = "Alert #{0}: ".format(incident_counter)
 
-        for incident, details in incidents_log.items():
-                incident_counter += 1
-                payload = None
-                output = "Alert #{0}: ".format(incident_counter)
+        if details["incident_type"] == "plaintext":
+                payload = "(username:{0}, password:{1})".format(
+                        details["user"], 
+                        details["pass"])
+                output += "Usernames and passwords sent in-the-clear "
+                output += "from {0} ".format(incident)
+                details["user"] = None
+                details["pass"] = None
 
-                if details["incident_type"] == "plaintext":
-                        payload = "(username:{0}, password:{1})".format(
-                                details["user"], 
-                                details["pass"])
-                        output += "Usernames and passwords sent in-the-clear "
-                        output += "from {0} ".format(incident)
+        elif details["incident_type"] == "scan":
+                output += "{0} is detected from {1} ".format(
+                        details["scan_type"], 
+                        incident)
+        
+        output += "({0})".format(details["proto"])
 
-                elif details["incident_type"] == "scan":
-                        output += "{0} is detected from {1} ".format(
-                                details["scan_type"], 
-                                incident)
-                
-                output += "({0})".format(details["proto"])
+        if payload != None:
+                output  += " {0}".format(payload)
+        
+        output += "!"
 
-                if payload != None:
-                        output  += " {0}".format(payload)
-                
-                output += "!"
-
-                print(output)
+        print(output)
 
 #########################################
 # Command-line Interface                #
@@ -264,7 +389,8 @@ def parse_args():
                 try:
                         print("Reading PCAP file %(filename)s..." % 
                               {"filename" : args.pcapfile})
-                        sniff(offline=args.pcapfile, prn=packet_callback)  
+                        sniff(offline=args.pcapfile, prn=packet_callback)
+
                 except:
                         print("Sorry, something went wrong reading PCAP \
                               file %(filename)s!" %
@@ -275,10 +401,12 @@ def parse_args():
                       {"interface" : args.interface})
                 try:
                         sniff(iface=args.interface, prn=packet_callback)
+
                 except pcapy.PcapError:
                         print("Sorry, error opening network interface \
                               %(interface)s. It does not exist." % 
                               {"interface" : args.interface})
+
                 except:
                         print("Sorry, can\'t read network traffic. \
                               Are you root?")
