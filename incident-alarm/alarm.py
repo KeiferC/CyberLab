@@ -47,12 +47,13 @@ def main():
 #
 def packet_callback(packet):
         try:
-                if (packet[TCP].dport == 80 or packet[TCP].dport == 21):
+                if (TCP in packet) and \
+                   (packet[TCP].dport == 80 or packet[TCP].dport == 21):
                         check_for_payload(packet, packet[TCP].dport)
 
                 # TODO : Handling Stealth Scans
-        except:
-                print("Error: Unable to read packet.")
+        except Exception as e:
+                print("Error: Unable to read packet.", e)
 
 #
 # check_for_payload
@@ -69,8 +70,8 @@ def check_for_payload(packet, port):
                 if packet[TCP].payload:
                         payload = str(packet[TCP].payload.load)
                         grab_pass(packet, payload, port)
-        except:
-                print("Error: Unable to read payload")
+        except Exception as e:
+                print("Error: Unable to read payload.", e)
 
 #
 # grab_pass
@@ -93,8 +94,8 @@ def grab_pass(packet, payload, port):
                         print("http") # TODO : grab_pass_http
                 elif port == 21:
                         grab_pass_ftp(packet, payload)
-        except:
-                print("Error: Unable to read port for parsing payload")
+        except Exception as e:
+                print("Error: Unable to read port.", e)
 
 #
 # grab_pass_ftp
@@ -122,8 +123,8 @@ def grab_pass_ftp(packet, payload):
                         passwd = payload.lstrip("b'PASS ")
                         passwd= passwd.rstrip("\\r\\n'")
                         log(packet, incident_type, user, passwd, None)
-        except:
-                print("Error: Unable to parse FTP payload")
+        except Exception as e:
+                print("Error: Unable to parse FTP payload", e)
 
 #########################################
 # Incident logging functions            #
