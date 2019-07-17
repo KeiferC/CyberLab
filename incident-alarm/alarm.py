@@ -14,6 +14,9 @@
 #
 #       usage:          python alarm.py ...
 #
+#       TODO : Refactor print_incidents for better readability
+#       TODO : Change '%' to .format for deprecation reasons
+#
 
 from scapy.all import *
 import pcapy
@@ -39,13 +42,15 @@ def main():
 # Callback function for sniff function. Checks for insecure protocols
 # (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
 #
-# @param        packet object
+# @param        PacketList packet
 # @return       n/a
 #
 def packet_callback(packet):
         try:
                 if (packet[TCP].dport == 80 or packet[TCP].dport == 21):
                         check_for_payload(packet, packet[TCP].dport)
+
+                # TODO : Handling Stealth Scans
         except:
                 print("Error: Unable to read packet.")
 
@@ -55,14 +60,12 @@ def packet_callback(packet):
 # Callback function for sniff function. Checks for insecure protocols
 # (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
 #
-# @param        packet object
+# @param        PacketList packet
 # @param        int port
 # @return       n/a
 #
 def check_for_payload(packet, port):
         try:
-                userpass = None;
-
                 if packet[TCP].payload:
                         payload = str(packet[TCP].payload.load)
                         grab_pass(packet, payload, port)
@@ -72,10 +75,10 @@ def check_for_payload(packet, port):
 #
 # grab_pass
 #       
-# Given payload and port, looks for username:password 
-# pairs and returns them if exists
+# Helper function to direct port-specific password
+# parsing
 #
-# @param        packet
+# @param        PacketList packet
 # @param        string payload
 # @param        int port
 # @return       n/a
@@ -89,16 +92,38 @@ def grab_pass(packet, payload, port):
                 if port == 80:
                         print("http")
                 elif port == 21:
-                        if "USER" in payload:
-                                user = payload.lstrip("b'USER ")
-                                user = user.rstrip("\\r\\n'")
-                                log(packet, incident_type, user, passwd, None)
-                        elif "PASS" in payload:
-                                passwd = payload.lstrip("b'PASS ")
-                                passwd= passwd.rstrip("\\r\\n'")
-                                log(packet, incident_type, user, passwd, None)
+                        grab_pass_ftp(packet, payload)
         except:
-                print("Error: Unable to parse payload string")
+                print("Error: Unable to read port for parsing payload")
+
+#
+# grab_pass_ftp
+#       
+# Parses FTP payload for usernames and passwords 
+# and sends them to be logged
+#
+# @param        PacketList packet
+# @param        string payload
+# @param        int port
+# @return       n/a
+#
+def grab_pass_ftp(packet, payload):
+        try:
+                user = None
+                passwd = None
+                incident_type = "plaintext"
+
+                if "USER" in payload:
+                        user = payload.lstrip("b'USER ")
+                        user = user.rstrip("\\r\\n'")
+                        log(packet, incident_type, user, passwd, None)
+
+                elif "PASS" in payload:
+                        passwd = payload.lstrip("b'PASS ")
+                        passwd= passwd.rstrip("\\r\\n'")
+                        log(packet, incident_type, user, passwd, None)
+        except:
+                print("Error: Unable to parse FTP payload")
 
 #########################################
 # Incident logging functions            #
@@ -108,24 +133,20 @@ def grab_pass(packet, payload, port):
 #       
 # Logs incident
 #
-# @param        packet
-# @param        string payload
-# @param        int port
+# @param        PacketList packet
+# @param        string incident_type
+# @param        string user
+# @param        passwd
+# @param        string scan_type
 # @return       n/a
 #
 def log(packet, incident_type, user, passwd, scan_type):
-        src_ip = packet[IP].src
+        ip = packet[IP].src
 
-        if src_ip not in incidents_log:
-                incidents_log[src_ip] = {
-                        "incident_type": incident_type,
-                        "user": user,
-                        "pass": passwd,
-                        "scan_type": None,
-                        "proto": None
-                }
+        if ip not in incidents_log:
+                incidents_log[ip] = new_incident(incident_type, user, passwd)
 
-        incident = incidents_log[src_ip]
+        incident = incidents_log[ip]
                 
         if incident_type == "plaintext":
                 if incident["proto"] == None:
@@ -138,6 +159,28 @@ def log(packet, incident_type, user, passwd, scan_type):
         elif incident_type == "scan":
                 incident["proto"] = packet[IP].proto
                 incident["scan_type"] = scan_type
+
+#
+# new_incident
+#
+# Returns an incident log object with some
+# initialized keys
+#
+# @param        string incident_type
+# @param        string user
+# @param        string passwd
+# @returns      Incident
+#
+def new_incident(incident_type, user, passwd):
+        incident = {
+                "incident_type": incident_type,
+                "user": user,
+                "pass": passwd,
+                "scan_type": None,
+                "proto": None
+        }
+
+        return incident
 
 #
 # print_incidents
