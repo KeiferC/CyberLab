@@ -23,10 +23,11 @@ import sys
 #########################################
 # Main                                  #
 #########################################
-incident_counter = 0
+incidents_log = {}
 
 def main():
         parse_args()
+        print_incidents()
         sys.exit()
 
 #########################################
@@ -44,7 +45,7 @@ def main():
 def packet_callback(packet):
         try:
                 if (packet[TCP].dport == 80 or packet[TCP].dport == 21):
-                        check_for_payload(packet[TCP], packet[TCP].dport)
+                        check_for_payload(packet, packet[TCP].dport)
         except:
                 print("Error: Unable to read packet.")
 
@@ -58,16 +59,13 @@ def packet_callback(packet):
 # @param        int port
 # @return       n/a
 #
-def check_for_payload(tcp_packet, port):
+def check_for_payload(packet, port):
         try:
-                password = None;
+                userpass = None;
 
-                if tcp_packet.payload:
-                        payload = str(tcp_packet.payload.load)
-                        password = grab_pass(payload, port)
-
-                        if password != None:
-                                print(password)
+                if packet[TCP].payload:
+                        payload = str(packet[TCP].payload.load)
+                        grab_pass(packet, payload, port)
         except:
                 print("Error: Unable to read payload")
 
@@ -77,16 +75,106 @@ def check_for_payload(tcp_packet, port):
 # Given payload and port, looks for username:password 
 # pairs and returns them if exists
 #
+# @param        packet
 # @param        string payload
 # @param        int port
-# @return       string 
+# @return       n/a
 #
-def grab_pass(payload, port):
-        return None
+def grab_pass(packet, payload, port):
+        try:
+                user = None
+                passwd = None
+                incident_type = "plaintext"
+
+                if port == 80:
+                        print("http")
+                elif port == 21:
+                        if "USER" in payload:
+                                user = payload.lstrip("b'USER ")
+                                user = user.rstrip("\\r\\n'")
+                                log(packet, incident_type, user, passwd, None)
+                        elif "PASS" in payload:
+                                passwd = payload.lstrip("b'PASS ")
+                                passwd= passwd.rstrip("\\r\\n'")
+                                log(packet, incident_type, user, passwd, None)
+        except:
+                print("Error: Unable to parse payload string")
 
 #########################################
 # Incident logging functions            #
 #########################################
+#
+# log
+#       
+# Logs incident
+#
+# @param        packet
+# @param        string payload
+# @param        int port
+# @return       n/a
+#
+def log(packet, incident_type, user, passwd, scan_type):
+        src_ip = packet[IP].src
+
+        if src_ip not in incidents_log:
+                incidents_log[src_ip] = {
+                        "incident_type": incident_type,
+                        "user": user,
+                        "pass": passwd,
+                        "scan_type": None,
+                        "proto": None
+                }
+
+        incident = incidents_log[src_ip]
+                
+        if incident_type == "plaintext":
+                if incident["proto"] == None:
+                        incident["proto"] = packet[TCP].dport
+                if user != None:
+                        incident["user"] = user
+                if passwd != None:
+                        incident["pass"] = passwd
+
+        elif incident_type == "scan":
+                incident["proto"] = packet[IP].proto
+                incident["scan_type"] = scan_type
+
+#
+# print_incidents
+#
+# prints all logged incidents
+#
+# @param        n/a
+# @returns      n/a
+#
+def print_incidents():
+        incident_counter = 0;
+
+        for incident, details in incidents_log.items():
+                incident_counter += 1
+                payload = None
+                output = "Alert #{0}: ".format(incident_counter)
+
+                if details["incident_type"] == "plaintext":
+                        payload = "(username:{0}, password:{1})".format(
+                                details["user"], 
+                                details["pass"])
+                        output += "Usernames and passwords sent in-the-clear "
+                        output += "from {0} ".format(incident)
+
+                elif details["incident_type"] == "scan":
+                        output += "{0} is detected from {1} ".format(
+                                details["scan_type"], 
+                                incident)
+                
+                output += "({0})".format(details["proto"])
+
+                if payload != None:
+                        output  += " {0}".format(payload)
+                
+                output += "!"
+
+                print(output)
 
 #########################################
 # Command-line Interface                #
