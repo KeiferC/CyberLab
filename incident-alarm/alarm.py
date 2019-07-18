@@ -12,9 +12,8 @@
 #       references:     
 #          - https://0xbharath.github.io/art-of-packet-crafting-with-scapy/
 #
-#       usage:          python alarm.py ...
+#       usage:          alarm.py [-h] [-i INTERFACE] [-r PCAPFILE]
 #
-#       TODO : Refactor print_incidents for better readability
 #       TODO : Change '%' to .format for deprecation reasons
 #
 
@@ -38,30 +37,26 @@ def main():
 #########################################
 # Vuln detection functions              #
 #########################################
-#
 # packet_callback
 #       
 # Callback function for sniff function. Checks for insecure protocols
 # (HTTP and FTP) and stealth scans (NULL, FIN, and XMAS)
 #
 # @param        PacketList packet
-# @return       n/a
-#
+# @returns      n/a
 def packet_callback(packet):
         try:
                 if (TCP in packet):
                         if packet[TCP].dport == 80 or \
                            packet[TCP].dport == 21:
                                 check_for_payload(packet, packet[TCP].dport)
-                       # if packet[TCP].flags:
+
                         check_tcp_flags(packet, str(packet[TCP].flags))
 
         except Exception as e:
                 print("Error: Unable to read packet.", e)
 
-
 # Plaintext Vulns =======================
-#
 # check_for_payload
 #       
 # Callback function for sniff function. Checks for insecure protocols
@@ -69,8 +64,7 @@ def packet_callback(packet):
 #
 # @param        PacketList packet
 # @param        int port
-# @return       n/a
-#
+# @returns      n/a
 def check_for_payload(packet, port):
         try:
                 if packet[TCP].payload:
@@ -80,7 +74,6 @@ def check_for_payload(packet, port):
         except Exception as e:
                 print("Error: Unable to read payload.", e)
 
-#
 # grab_pass
 #       
 # Helper function to direct port-specific password
@@ -89,8 +82,7 @@ def check_for_payload(packet, port):
 # @param        PacketList packet
 # @param        string payload
 # @param        int port
-# @return       n/a
-#
+# @returns      n/a
 def grab_pass(packet, payload, port):
         try:
                 user = None
@@ -105,7 +97,6 @@ def grab_pass(packet, payload, port):
         except Exception as e:
                 print("Error: Unable to read port.", e)
 
-#
 # grab_pass_http
 #       
 # Parses HTTP payload for usernames and passwords 
@@ -113,9 +104,7 @@ def grab_pass(packet, payload, port):
 #
 # @param        PacketList packet
 # @param        string payload
-# @param        int port
-# @return       n/a
-#
+# @returns      n/a
 def grab_pass_http(packet, payload):
         try:
                 user = None
@@ -139,7 +128,6 @@ def grab_pass_http(packet, payload):
         except Exception as e:
                 print("Error: Unable to parse HTTP payload.", e)
 
-#
 # grab_pass_ftp
 #       
 # Parses FTP payload for usernames and passwords 
@@ -147,9 +135,7 @@ def grab_pass_http(packet, payload):
 #
 # @param        PacketList packet
 # @param        string payload
-# @param        int port
-# @return       n/a
-#
+# @returns      n/a
 def grab_pass_ftp(packet, payload):
         try:
                 user = None
@@ -168,7 +154,6 @@ def grab_pass_ftp(packet, payload):
         except Exception as e:
                 print("Error: Unable to parse FTP payload.", e)
 
-#
 # parse_userpass
 #       
 # Parses retrieved regex match and returns
@@ -176,8 +161,7 @@ def grab_pass_ftp(packet, payload):
 # password pair
 #
 # @param        SRE_Match userpass
-# @return       string
-#
+# @returns      string
 def parse_userpass(userpass):
         userpass = userpass.group(1)
         userpass = userpass.lstrip("Authorization: Basic ")
@@ -185,14 +169,12 @@ def parse_userpass(userpass):
         userpass = base64.b64decode(userpass)
         return str(userpass)
 
-#
 # get_http_user
 #       
 # Returns string username from userpass
 #
 # @param        string userpass
-# @return       string
-#
+# @returns      string
 def get_http_user(userpass):
         user_regex = re.compile(r"b'(.*?)\:", re.VERBOSE)
         user = user_regex.search(userpass)
@@ -203,14 +185,12 @@ def get_http_user(userpass):
         else:
                 raise Exception("Unable to retrieve username from HTTP")
 
-#
 # get_http_user
 #       
 # Returns string username from userpass
 #
 # @param        string userpass
-# @return       string
-#
+# @returns      string
 def get_http_pass(userpass):
         pass_regex = re.compile(r"\:(.*?)'")
         passwd = pass_regex.search(userpass)
@@ -222,7 +202,6 @@ def get_http_pass(userpass):
                 raise Exception("Unable to retrieve password from HTTP")
 
 # Stealth Scan Detection ================
-#
 # check_tcp_flags
 #
 # Sends FIN, NULL, and XMAS scans to log
@@ -230,7 +209,6 @@ def get_http_pass(userpass):
 # @param        PacketList packet
 # @param        string flags
 # @returns      n/a
-#
 def check_tcp_flags(packet, flags):
         incident_type = "scan"
         scan_type = None
@@ -249,7 +227,6 @@ def check_tcp_flags(packet, flags):
 #########################################
 # Incident logging functions            #
 #########################################
-#
 # log
 #       
 # Logs incident
@@ -259,8 +236,7 @@ def check_tcp_flags(packet, flags):
 # @param        string user
 # @param        string passwd
 # @param        string scan_type
-# @return       n/a
-#
+# @returns      n/a
 def log(packet, incident_type, user, passwd, scan_type):
         ip = packet[IP].src
 
@@ -274,7 +250,6 @@ def log(packet, incident_type, user, passwd, scan_type):
         elif incident_type == "scan":
                 log_scan(packet, incident, scan_type)
 
-#
 # log_plaintext
 #       
 # Logs plaintext-specific incident
@@ -283,8 +258,7 @@ def log(packet, incident_type, user, passwd, scan_type):
 # @param        dict incident
 # @param        string user
 # @param        string passwd
-# @return       n/a
-#
+# @returns      n/a
 def log_plaintext(packet, incident, user, passwd):
         if incident["proto"] == None:
                 incident["proto"] = packet[TCP].dport
@@ -295,7 +269,6 @@ def log_plaintext(packet, incident, user, passwd):
         if incident["user"] != None and incident["pass"] != None:
                 print_incident(packet[IP].src)
 
-#
 # log_scan
 #       
 # Logs plaintext-specific incident
@@ -303,14 +276,12 @@ def log_plaintext(packet, incident, user, passwd):
 # @param        PacketList packet
 # @param        dict incident
 # @param        string scan_type
-# @return       n/a
-#
+# @returns      n/a
 def log_scan(packet, incident, scan_type):
         incident["proto"] = packet[IP].proto
         incident["scan_type"] = scan_type
         print_incident(packet[IP].src)
 
-#
 # new_incident
 #
 # Returns an incident log object with some
@@ -319,8 +290,7 @@ def log_scan(packet, incident, scan_type):
 # @param        string incident_type
 # @param        string user
 # @param        string passwd
-# @returns      Incident
-#
+# @returns      dict
 def new_incident(incident_type, user, passwd):
         incident = {
                 "incident_type": incident_type,
@@ -334,14 +304,12 @@ def new_incident(incident_type, user, passwd):
 #########################################
 # Printing functions                    #
 #########################################
-#
 # print_incidents
 #
 # prints all logged incidents
 #
 # @param        string incident
 # @returns      n/a
-#
 def print_incident(incident):
         global incident_counter
         incident_counter += 1
@@ -365,7 +333,6 @@ def print_incident(incident):
 
         print(output)
 
-#
 # format_plaintext_output
 #
 # Formats plaintext-specific output
@@ -373,7 +340,6 @@ def print_incident(incident):
 # @param        string incident
 # @param        dict details
 # @returns      string
-#
 def format_plaintext_output(incident, details):
         output = "Usernames and passwords sent in-the-clear "
         output += "from {0} ".format(incident)
@@ -381,7 +347,6 @@ def format_plaintext_output(incident, details):
         details["pass"] = None
         return output
 
-#
 # format_scan_output
 #
 # Formats scan-specific output
@@ -389,7 +354,6 @@ def format_plaintext_output(incident, details):
 # @param        string incident
 # @param        dict details
 # @returns      string
-#
 def format_scan_output(incident, details):
         return "{0} is detected from {1} ".format(details["scan_type"], 
                                                   incident)
@@ -397,14 +361,12 @@ def format_scan_output(incident, details):
 #########################################
 # Command-line Interface                #
 #########################################
-#
 # set_parser_args
 #       
 # Sets up parser command-line arguments
 #
 # @param        n/a
-# @return       argument parser
-#
+# @returns      argument parser
 def set_parser_args():
         parser = argparse.ArgumentParser(
                 description='A network sniffer that identifies basic \
@@ -423,14 +385,12 @@ def set_parser_args():
 
         return parser.parse_args()
 
-#
 # parse_args
 #       
 # Parses command-line arguments
 #
 # @param        n/a
-# @return       n/a
-#
+# @returns      n/a
 def parse_args():
         args = set_parser_args()
 
