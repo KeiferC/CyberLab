@@ -53,8 +53,8 @@ def packet_callback(packet):
                         if packet[TCP].dport == 80 or \
                            packet[TCP].dport == 21:
                                 check_for_payload(packet, packet[TCP].dport)
-                        if packet[TCP].flags:
-                                check_tcp_flags(packet, str(packet[TCP].flags))
+                       # if packet[TCP].flags:
+                        check_tcp_flags(packet, str(packet[TCP].flags))
 
         except Exception as e:
                 print("Error: Unable to read packet.", e)
@@ -235,11 +235,11 @@ def check_tcp_flags(packet, flags):
         incident_type = "scan"
         scan_type = None
 
-        if flags == "":
+        if not flags:
                 scan_type = "Null scan"
-        elif flags == "F":
+        elif str(flags) == "F":
                 scan_type = "Fin scan"
-        elif flags == "FPU":
+        elif str(flags) == "FPU":
                 scan_type = "Xmas scan"
         else:
                 return
