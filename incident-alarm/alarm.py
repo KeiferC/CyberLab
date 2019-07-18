@@ -53,12 +53,14 @@ def packet_callback(packet):
                         if packet[TCP].dport == 80 or \
                            packet[TCP].dport == 21:
                                 check_for_payload(packet, packet[TCP].dport)
-                        
-                        # TODO : Check for TCP flags (packet[TCP].flags)
+                        if packet[TCP].flags:
+                                check_tcp_flags(packet, str(packet[TCP].flags))
 
         except Exception as e:
                 print("Error: Unable to read packet.", e)
 
+
+# Plaintext Vulns =======================
 #
 # check_for_payload
 #       
@@ -133,7 +135,7 @@ def grab_pass_http(packet, payload):
                                 user  = get_http_user(userpass)
                                 passwd = get_http_pass(userpass)
                                 log(packet, incident_type, user, passwd, None)
-                
+
         except Exception as e:
                 print("Error: Unable to parse HTTP payload.", e)
 
@@ -158,7 +160,6 @@ def grab_pass_ftp(packet, payload):
                         user = payload.lstrip("b'USER ")
                         user = user.rstrip("\\r\\n'")
                         log(packet, incident_type, user, passwd, None)
-
                 elif "PASS" in payload:
                         passwd = payload.lstrip("b'PASS ")
                         passwd= passwd.rstrip("\\r\\n'")
@@ -182,7 +183,6 @@ def parse_userpass(userpass):
         userpass = userpass.lstrip("Authorization: Basic ")
         userpass = userpass.rstrip("\\r\\n")
         userpass = base64.b64decode(userpass)
-
         return str(userpass)
 
 #
@@ -221,6 +221,31 @@ def get_http_pass(userpass):
         else:
                 raise Exception("Unable to retrieve password from HTTP")
 
+# Stealth Scan Detection ================
+#
+# check_tcp_flags
+#
+# Sends FIN, NULL, and XMAS scans to log
+#
+# @param        PacketList packet
+# @param        string flags
+# @returns      n/a
+#
+def check_tcp_flags(packet, flags):
+        incident_type = "scan"
+        scan_type = None
+
+        if flags == "":
+                scan_type = "Null scan"
+        elif flags == "F":
+                scan_type = "Fin scan"
+        elif flags == "FPU":
+                scan_type = "Xmas scan"
+        else:
+                return
+        
+        log(packet, incident_type, None, None, scan_type)
+        
 #########################################
 # Incident logging functions            #
 #########################################
@@ -247,7 +272,7 @@ def log(packet, incident_type, user, passwd, scan_type):
         if incident_type == "plaintext":
                 log_plaintext(packet, incident, user, passwd)
         elif incident_type == "scan":
-                log_scan(packet, incident)
+                log_scan(packet, incident, scan_type)
 
 #
 # log_plaintext
@@ -277,11 +302,10 @@ def log_plaintext(packet, incident, user, passwd):
 #
 # @param        PacketList packet
 # @param        dict incident
-# @param        string user
-# @param        string passwd
+# @param        string scan_type
 # @return       n/a
 #
-def log_scan(packet, incident):
+def log_scan(packet, incident, scan_type):
         incident["proto"] = packet[IP].proto
         incident["scan_type"] = scan_type
         print_incident(packet[IP].src)
@@ -305,9 +329,11 @@ def new_incident(incident_type, user, passwd):
                 "scan_type": None,
                 "proto": None
         }
-
         return incident
 
+#########################################
+# Printing functions                    #
+#########################################
 #
 # print_incidents
 #
@@ -327,7 +353,6 @@ def print_incident(incident):
                 payload = "(username:{0}, password:{1})".format(
                            details["user"], details["pass"])
                 output += format_plaintext_output(incident, details)
-
         elif details["incident_type"] == "scan":
                 output += format_scan_output(incident, details)
         
