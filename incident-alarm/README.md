@@ -6,8 +6,6 @@ basic auth or through FTP while listening on an interface or while
 reading a pcap file. The proram also alerts the user if it detects 
 FIN, XMAS, and NULL scans.
 
-alarm.py works by 
-
 ### Imported Modules
 - `scapy`
 - `pcapy`
