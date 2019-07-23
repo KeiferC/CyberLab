@@ -1,4 +1,8 @@
 ### macOS ###
+
+# Other
+.vscode
+
 # General
 .DS_Store
 .AppleDouble
