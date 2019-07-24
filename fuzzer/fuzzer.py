@@ -46,12 +46,14 @@ def main():
         
         try:
                 input_list = get_input_list(directory)
+                print("Loaded {0} payloads.".format(len(input_list)))
         except Exception as e:
                 print("Error:", e)
                 sys.exit()
 
         try:
                 responses = fuzz(input_list)
+                print("Delivered all payloads.")
         except Exception as e:
                 print("Error:", e)
                 sys.exit()
@@ -91,6 +93,7 @@ def calc_risk(responses):
                 risk_counter += 1
                 j += 1
 
+        print("======== RESULTS ========")
         print("Avg similarity ratio of HTTP responses:", mode)
         print("Number of delivered payloads:", len(responses))
         print("Number of potential successful XSS attacks:", risk_counter)
