@@ -17,6 +17,7 @@
 from difflib import SequenceMatcher
 import requests
 import random
+import math
 import glob
 import sys
 import os
@@ -49,8 +50,6 @@ def main():
         
         calc_risk(responses)
         
-
-
 #########################################
 # Functions                             #
 #########################################
@@ -65,21 +64,22 @@ def calc_risk(responses):
         ratios = []
         mode = None
         risk_counter = 0
-        midpoint = len(responses) / 2
+        midpoint = math.floor(len(responses) / 2)
 
         random.shuffle(responses)
-        for i in range(0, len(responses)):
-                print(responses[i])
 
-        # for i in range(0, midpoint):
-        #         ratios.append(SequenceMatcher(None, responses[i], 
-        #                                       responses[]))
-
-
-
-
-
+        for i in range(0, midpoint):
+                ratios.append(SequenceMatcher(None, responses[i], 
+                                              responses[midpoint + i]).ratio())
         
+        mode = max(set(ratios), key = ratios.count)
+        ratios.sort()
+        
+        for i in ratios:
+                print(i)
+
+        print("Avg similarity ratio of HTTP responses:", mode)
+
 
 def fuzz(input_list):
         url = "http://www.cs.tufts.edu/comp/20/hackme.php"
@@ -92,7 +92,7 @@ def fuzz(input_list):
         response_list = []
 
         # debug counter
-        max_i = 10
+        max_i = 11
         i = 0
 
         for payload in input_list:
