@@ -16,6 +16,7 @@
 
 from difflib import SequenceMatcher
 import requests
+import random
 import glob
 import sys
 import os
@@ -45,9 +46,8 @@ def main():
         except Exception as e:
                 print("Error:", e)
                 sys.exit()
-
-        for i in responses:
-                print(i)
+        
+        calc_risk(responses)
         
 
 
@@ -62,7 +62,22 @@ def main():
 #       count number of ratios < mode (not similar to normal response)
 #       print number as possible successful injections
 def calc_risk(responses):
-        pass
+        ratios = []
+        mode = None
+        risk_counter = 0
+        midpoint = len(responses) / 2
+
+        random.shuffle(responses)
+        for i in range(0, len(responses)):
+                print(responses[i])
+
+        # for i in range(0, midpoint):
+        #         ratios.append(SequenceMatcher(None, responses[i], 
+        #                                       responses[]))
+
+
+
+
 
         
 
@@ -87,6 +102,7 @@ def fuzz(input_list):
                 response = requests.post(url, data)
                 response_list.append(response.text)
 
+                # Debug break condition
                 if i == max_i:
                         break
                 
