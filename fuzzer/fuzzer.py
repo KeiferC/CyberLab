@@ -113,7 +113,7 @@ def fuzz(input_list):
         for payload in input_list:
                 for key in data:
                         data[key] = payload
-                
+
                 response = requests.post(url, data)
                 response_list.append(response.text)
         
