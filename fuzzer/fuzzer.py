@@ -14,6 +14,7 @@
 #       Seclist:        https://github.com/danielmiessler/SecLists/tree/master/Fuzzing
 #
 
+from difflib import SequenceMatcher
 import requests
 import glob
 import sys
@@ -25,6 +26,7 @@ import os
 def main():
         directory = None
         input_list = None
+        respones = None
 
         try:
                 directory = get_dir()
@@ -38,13 +40,62 @@ def main():
                 print("Error:", e)
                 sys.exit()
 
-        fuzz(input_list)
+        try:
+                responses = fuzz(input_list)
+        except Exception as e:
+                print("Error:", e)
+                sys.exit()
+
+        for i in responses:
+                print(i)
+        
 
 
 #########################################
 # Functions                             #
 #########################################
+
+# Algorithm
+#       Split array into two. compare each elem to corresponding
+#       store all ratios into array
+#       find mode == average difference --> implied normal response
+#       count number of ratios < mode (not similar to normal response)
+#       print number as possible successful injections
+def calc_risk(responses):
+        pass
+
+        
+
 def fuzz(input_list):
+        url = "http://www.cs.tufts.edu/comp/20/hackme.php"
+        data = {
+                "price": None,
+                "fullname": None,
+                "beverage": None,
+                "submitBtn": None
+        }
+        response_list = []
+
+        # debug counter
+        max_i = 10
+        i = 0
+
+        for payload in input_list:
+                for key in data:
+                        data[key] = payload
+                
+                response = requests.post(url, data)
+                response_list.append(response.text)
+
+                if i == max_i:
+                        break
+                
+                i += 1
+        
+        if len(response_list) == 0:
+                raise Exception("Unable to POST to URL.")
+        
+        return response_list
 
 
 def get_input_list(directory):
