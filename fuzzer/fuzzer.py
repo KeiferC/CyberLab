@@ -65,6 +65,7 @@ def calc_risk(responses):
         mode = None
         risk_counter = 0
         midpoint = math.floor(len(responses) / 2)
+        j = 0
 
         random.shuffle(responses)
 
@@ -74,11 +75,16 @@ def calc_risk(responses):
         
         mode = max(set(ratios), key = ratios.count)
         ratios.sort()
-        
-        for i in ratios:
-                print(i)
+
+        while j < len(ratios) and ratios[j] < mode:
+                risk_counter += 1
+                j += 1
 
         print("Avg similarity ratio of HTTP responses:", mode)
+        print("Number of delivered payloads:", len(responses))
+        print("Number of potential successful XSS attacks:", risk_counter)
+        print("Percent success of XSS attacks: {:.3%}".format(risk_counter / 
+              len(responses)))
 
 
 def fuzz(input_list):
@@ -91,22 +97,12 @@ def fuzz(input_list):
         }
         response_list = []
 
-        # debug counter
-        max_i = 11
-        i = 0
-
         for payload in input_list:
                 for key in data:
                         data[key] = payload
                 
                 response = requests.post(url, data)
                 response_list.append(response.text)
-
-                # Debug break condition
-                if i == max_i:
-                        break
-                
-                i += 1
         
         if len(response_list) == 0:
                 raise Exception("Unable to POST to URL.")
