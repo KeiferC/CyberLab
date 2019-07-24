@@ -11,7 +11,15 @@
 #
 #       usage:          fuzzer.py <SECLIST_DIRECTORY>
 #
-#       Seclist:        https://github.com/danielmiessler/SecLists/tree/master/Fuzzing
+#       TODO:           site agnostic functionality
+#                       multi-threaded payload delivery
+#                       re-eval accuracy v. run-time tradeoff
+#                       optimize
+#                       train for success identification
+#                               current algo assumes XSS success rate < ~75%
+#                               calculate difference between mode and next mode
+#                       more robust testing
+#                       documentation
 #
 
 from difflib import SequenceMatcher
@@ -53,28 +61,31 @@ def main():
 #########################################
 # Functions                             #
 #########################################
-
 # Algorithm
-#       Split array into two. compare each elem to corresponding
-#       store all ratios into array
-#       find mode == average difference --> implied normal response
-#       count number of ratios < mode (not similar to normal response)
-#       print number as possible successful injections
+#       1. Randomize array
+#       2. Split array in half
+#       3. Calculate string distance between corresponding elements
+#          each array
+#       4. Store ratios in a ratio array
+#       5. Calculate mode of ratios, representing expected percent
+#          difference from ineffective inputs
+#       6. Count number of ratios < mode (number of percent differences
+#          greater than the expected percent difference)
 def calc_risk(responses):
         ratios = []
-        mode = None
         risk_counter = 0
+        mode = None
         midpoint = math.floor(len(responses) / 2)
         j = 0
 
-        random.shuffle(responses)
+        random.shuffle(responses) # for more accurate similarity metrics
 
         for i in range(0, midpoint):
                 ratios.append(SequenceMatcher(None, responses[i], 
                                               responses[midpoint + i]).ratio())
         
         mode = max(set(ratios), key = ratios.count)
-        ratios.sort()
+        ratios.sort() # for faster counts -> expected runtime = O(n/2)
 
         while j < len(ratios) and ratios[j] < mode:
                 risk_counter += 1
@@ -85,7 +96,6 @@ def calc_risk(responses):
         print("Number of potential successful XSS attacks:", risk_counter)
         print("Percent success of XSS attacks: {:.3%}".format(risk_counter / 
               len(responses)))
-
 
 def fuzz(input_list):
         url = "http://www.cs.tufts.edu/comp/20/hackme.php"
@@ -109,7 +119,6 @@ def fuzz(input_list):
         
         return response_list
 
-
 def get_input_list(directory):
         list = []
 
@@ -131,8 +140,10 @@ def get_input_list(directory):
 def get_dir():
         if len(sys.argv) == 2:
                 directory = sys.argv[1]
+
                 if os.path.isdir(directory):
                         return directory
+
                 raise ValueError("{0} is not a valid directory.".format(directory))
         else:
                 usage()
