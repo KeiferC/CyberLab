@@ -7,8 +7,7 @@
 #       version:        0.0.1
 #       
 #       description:    Recursively collects all .txt entries in a
-#                       directory and compiles them into one giant
-#                       seclist 
+#                       directory and prints to output
 #
 #       usage:          collator.py <SECLIST_DIRECTORY>
 #
@@ -39,31 +38,30 @@ def main():
         
         try:
                 payloads = get_payloads(directory)
-                print("Loaded {0} payloads.".format(len(payloads)))
         except Exception as e:
                 print("Error:", e)
                 sys.exit()
-        
-        for entry in payloads:
-                print(entry)
         
 #########################################
 # Functions                             #
 #########################################
 def get_payloads(directory):
-        list = []
+        payloads = []
 
         for filename in glob.glob(os.path.join(directory, 
                                   "**/*.txt"), recursive = True):
                 file = open(filename, "r", encoding = "latin-1")
 
                 for line in file:
-                        list.append(line.rstrip('\n'))
+                        payloads.append(line.rstrip('\n'))
         
-        if len(list) == 0:
+        payloads = list(set(payloads))
+
+        if len(payloads) == 0:
                 raise Exception("No .txt files found in given directory.")
 
-        return list
+        return payloads
+
 
 #########################################
 # Argument Parsing                      #
