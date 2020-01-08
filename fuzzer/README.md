@@ -34,11 +34,3 @@ foo@bar:~$ python3 fuzzer.py <SECLIST_DIRECTORY>
 ### Requirements
 - `python3`
 - `requests`
-
-### Implementation Details
-- All requirements have been correctly implemented
-- Did not receive help from anyone
-- Lab took about 5 hours to do
-- Would like to optimize the application for better run-times
-- Would also like to use a better string-distance algorithm
-
