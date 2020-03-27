@@ -10,7 +10,12 @@
 #       usage: crack-jwt.py [-h] <FILE> <TOKEN>
 #
 
-import sys, argparse
+import argparse
+import base64
+import json
+import jwt
+import re
+import sys
 
 #########################################
 # Main                                  #
@@ -25,8 +30,8 @@ def main():
         args            = parse_arguments()
         filename        = args["filename"]
         token           = args["token"]
-        wordslist       = parse_infile(filename)
-        secrets_list    = crack_token(token, wordslist)
+        wordlist        = parse_infile(filename)
+        secrets_list    = crack_token(token, wordlist)
 
         print("{0} successes out of {1} attempts.".format(
                 len(secrets_list), len(wordlist)))
@@ -46,11 +51,45 @@ def main():
 # of words, returns a list of found secrets
 #
 # @param        {str} token: JWT token to crack
-# @param        {list} wordslist: wordslist words
+# @param        {list} wordlist: wordslist words
 # @returns      {list} list of found secrets
 #
-def crack_token(token, wordslist):
-        return wordslist # TODO
+def crack_token(token, wordlist):
+        re_pattern      = "[A-Za-z0-9+_-]+\."
+        regex           = re.findall(re_pattern, token)
+
+        try:
+                header  = regex[0].replace(".", "") + "==="
+                payload = regex[1].replace(".", "") + "==="
+        except:
+                sys.exit("Error: Unable to parse JWT.")
+
+        # Convert base64 string into dict
+        header  = json.loads(base64.b64decode(header).decode("utf-8"))
+        payload = json.loads(base64.b64decode(payload).decode("utf-8"))
+
+        return get_secrets_list(token, header, payload, wordlist)
+
+
+#
+# Given the string token, the header and payload string, and an array 
+# of words to try, returns an array of found secrets
+#
+# @param        {str} token: JWT token to crack
+# @param        {str} message: header and payload string
+# @param        {list} wordlist: list of words to try
+# @returns      {list} list of found secrets
+#
+def get_secrets_list(token, header, payload, wordlist):
+        secrets_list = []
+
+        #encoded = jwt.encode()
+
+        #debug
+        print()
+        #print(encoded)
+
+        return secrets_list
 
 
 #########################################
@@ -84,13 +123,12 @@ def parse_arguments():
 # @returns      {list} list of words from wordslist
 #
 def parse_infile(filename):
-        wordlist = ""
+        wordlist = []
 
         try:
                 with open(filename, 'r') as file:
                         for line in file:
-                                for word in line.split():
-                                        wordlist.append(word)
+                                wordlist.append(line)
         except FileNotFoundError:
                 print("No such file \'{}\' in directory.".format(filename))
                 sys.exit("Error: FileNotFoundError.")
