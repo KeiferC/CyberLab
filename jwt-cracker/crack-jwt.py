@@ -76,18 +76,20 @@ def crack_token(token, wordlist):
 # of words to try, returns an array of found secrets
 #
 # @param        {str} token: JWT token to crack
-# @param        {str} message: header and payload string
+# @param        {dict} header: header json
+# @param        {dict} payload: payload json
 # @param        {list} wordlist: list of words to try
 # @returns      {list} list of found secrets
 #
 def get_secrets_list(token, header, payload, wordlist):
         secrets_list = []
 
-        #encoded = jwt.encode()
+        for word in wordlist:
+                encoded = jwt.encode(payload, word, algorithm="HS256", 
+                                headers=header).decode("utf-8")
 
-        #debug
-        print()
-        #print(encoded)
+                if (encoded == token):
+                        secrets_list.append(word)
 
         return secrets_list
 
@@ -115,6 +117,7 @@ def parse_arguments():
                             help=token_help)
 
         return vars(parser.parse_args())
+
 
 #
 # Given a wordlist filename, returns an list of words from file
