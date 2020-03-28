@@ -42,6 +42,10 @@ def main():
                 print("Error:", e)
                 sys.exit()
         
+        for word in payloads:
+                print(word)
+
+
 #########################################
 # Functions                             #
 #########################################
